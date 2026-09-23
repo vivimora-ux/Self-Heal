@@ -1,0 +1,111 @@
+:root {
+  color-scheme: light;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  max-width: 480px;
+  margin: 4rem auto;
+  padding: 0 1.5rem;
+  color: #111;
+  line-height: 1.5;
+}
+
+h1 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 1.5rem;
+}
+
+.subtitle {
+  color: #666;
+  font-size: 0.9rem;
+  margin-top: -1rem;
+  margin-bottom: 2rem;
+}
+
+nav a {
+  display: block;
+  padding: 0.6rem 0;
+  color: #111;
+  text-decoration: none;
+  border-bottom: 1px solid #eee;
+}
+
+nav a:hover {
+  color: #666;
+}
+
+#drift-banner {
+  font-size: 0.85rem;
+  color: #b45309;
+  margin-bottom: 1.5rem;
+}
+
+#drift-banner[hidden] {
+  display: none;
+}
+
+form label {
+  display: block;
+  font-size: 0.85rem;
+  color: #444;
+  margin-top: 1rem;
+}
+
+form input {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0;
+  margin-top: 0.35rem;
+  border: none;
+  border-bottom: 1px solid #ccc;
+  font-size: 1rem;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+form input:focus {
+  outline: none;
+  border-bottom-color: #111;
+}
+
+button {
+  margin-top: 1.5rem;
+  padding: 0.55rem 1.1rem;
+  background: #111;
+  color: #fff;
+  border: none;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #333;
+}
+
+.result {
+  margin-top: 1.25rem;
+  font-size: 0.9rem;
+  color: #16794f;
+  min-height: 1.2em;
+}
+
+canvas {
+  display: block;
+  margin-top: 1rem;
+  border: 1px solid #eee;
+  cursor: pointer;
+}
+
+.back-link {
+  display: inline-block;
+  margin-top: 2.5rem;
+  font-size: 0.85rem;
+  color: #666;
+  text-decoration: none;
+}
+
+.back-link:hover {
+  color: #111;
+}

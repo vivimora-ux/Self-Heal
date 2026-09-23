@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Checkout Form</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>Checkout Form</h1>
+  <div id="drift-banner" hidden></div>
+
+  <form id="checkout-form">
+    <label for="email">Email</label>
+    <input id="email" type="email" data-testid="email-input" />
+
+    <label id="promo-label" for="promo-code">Promo code</label>
+    <input id="promo-code" type="text" data-testid="promo-code-input" placeholder="Promo code" />
+
+    <button id="submit-btn" type="submit" data-testid="submit-order-btn">Submit Order</button>
+  </form>
+  <div data-testid="form-result" class="result"></div>
+
+  <a class="back-link" href="index.html">&larr; back</a>
+
+  <script>
+    // Drift scenarios: mutate the "correct" markup into a drifted version,
+    // simulating a frontend change on cue via ?drift=<scenario>.
+    const DRIFT_SCENARIOS = {
+      'submit-structural': () => {
+        // Renamed attribute, id/text untouched -> fallback list (id, text) still resolves it.
+        document.getElementById('submit-btn').removeAttribute('data-testid');
+      },
+      'promo-rename': () => {
+        // testid, id, and label/placeholder all change at once -> no fallback candidate survives.
+        const input = document.getElementById('promo-code');
+        const label = document.getElementById('promo-label');
+        input.removeAttribute('data-testid');
+        input.id = 'discount-code';
+        input.placeholder = 'Discount code';
+        label.textContent = 'Discount code';
+        label.setAttribute('for', 'discount-code');
+      },
+    };
+
+    const scenario = new URLSearchParams(location.search).get('drift');
+    if (scenario && DRIFT_SCENARIOS[scenario]) {
+      DRIFT_SCENARIOS[scenario]();
+      const banner = document.getElementById('drift-banner');
+      banner.textContent = `Drift: ${scenario}`;
+      banner.hidden = false;
+    }
+
+    document.getElementById('checkout-form').addEventListener('submit', (event) => {
+      event.preventDefault();
+      document.querySelector('[data-testid="form-result"]').textContent = 'Order submitted!';
+    });
+  </script>
+</body>
+</html>

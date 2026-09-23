@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Shadow DOM Widget</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>Shadow DOM Widget</h1>
+  <x-widget></x-widget>
+  <div data-testid="shadow-result" class="result"></div>
+
+  <a class="back-link" href="index.html">&larr; back</a>
+
+  <script>
+    class XWidget extends HTMLElement {
+      connectedCallback() {
+        const shadow = this.attachShadow({ mode: 'open' });
+        shadow.innerHTML = `
+          <style>
+            button {
+              padding: 0.55rem 1.1rem;
+              background: #111;
+              color: #fff;
+              border: none;
+              font-size: 0.9rem;
+              cursor: pointer;
+            }
+            button:hover { background: #333; }
+          </style>
+          <button data-testid="shadow-action-btn">Activate</button>
+        `;
+        // Result div lives in the light DOM, outside the shadow root, so it
+        // stays reachable by a plain selector even though the button doesn't.
+        shadow.querySelector('button').addEventListener('click', () => {
+          document.querySelector('[data-testid="shadow-result"]').textContent = 'Shadow widget activated!';
+        });
+      }
+    }
+    customElements.define('x-widget', XWidget);
+  </script>
+</body>
+</html>

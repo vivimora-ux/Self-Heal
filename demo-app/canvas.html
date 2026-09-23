@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Canvas Widget</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>Canvas Widget</h1>
+  <canvas id="widget-canvas" width="220" height="80"></canvas>
+  <div data-testid="canvas-result" class="result"></div>
+
+  <a class="back-link" href="index.html">&larr; back</a>
+
+  <script>
+    const canvas = document.getElementById('widget-canvas');
+    const ctx = canvas.getContext('2d');
+    const btnRect = { x: 40, y: 20, w: 140, h: 40 };
+
+    ctx.fillStyle = '#111';
+    ctx.fillRect(btnRect.x, btnRect.y, btnRect.w, btnRect.h);
+    ctx.fillStyle = '#fff';
+    ctx.font = '16px sans-serif';
+    ctx.fillText('Click Me', btnRect.x + 30, btnRect.y + 25);
+
+    canvas.addEventListener('click', (event) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      const hit = x >= btnRect.x && x <= btnRect.x + btnRect.w && y >= btnRect.y && y <= btnRect.y + btnRect.h;
+      if (hit) {
+        document.querySelector('[data-testid="canvas-result"]').textContent = 'Canvas button clicked!';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# WebdriverIO test artifacts
+wdio-suite/allure-results/
+wdio-suite/allure-report/
+wdio-suite/reports/
+wdio-suite/screenshots/
+wdio-suite/logs/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+npm-debug.log*
+yarn-error.log*
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/

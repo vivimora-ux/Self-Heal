@@ -6,8 +6,9 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h1>Canvas Widget</h1>
-  <canvas id="widget-canvas" width="220" height="80"></canvas>
+  <h1>Now Playing</h1>
+  <p class="subtitle">S1 · E4 — Pilot</p>
+  <canvas id="widget-canvas" width="320" height="180"></canvas>
   <div data-testid="canvas-result" class="result"></div>
 
   <a class="back-link" href="index.html">&larr; back</a>
@@ -15,21 +16,42 @@
   <script>
     const canvas = document.getElementById('widget-canvas');
     const ctx = canvas.getContext('2d');
-    const btnRect = { x: 40, y: 20, w: 140, h: 40 };
+    const play = { x: canvas.width / 2, y: canvas.height / 2, r: 28 };
 
-    ctx.fillStyle = '#111';
-    ctx.fillRect(btnRect.x, btnRect.y, btnRect.w, btnRect.h);
-    ctx.fillStyle = '#fff';
-    ctx.font = '16px sans-serif';
-    ctx.fillText('Click Me', btnRect.x + 30, btnRect.y + 25);
+    function draw(active) {
+      ctx.fillStyle = '#111';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.beginPath();
+      ctx.arc(play.x, play.y, play.r, 0, Math.PI * 2);
+      ctx.fillStyle = active ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.15)';
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(play.x - 8, play.y - 14);
+      ctx.lineTo(play.x - 8, play.y + 14);
+      ctx.lineTo(play.x + 14, play.y);
+      ctx.closePath();
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+
+      // decorative progress bar
+      ctx.fillStyle = '#333';
+      ctx.fillRect(20, canvas.height - 14, canvas.width - 40, 3);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(20, canvas.height - 14, (canvas.width - 40) * 0.35, 3);
+    }
+
+    draw(false);
 
     canvas.addEventListener('click', (event) => {
       const rect = canvas.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
-      const hit = x >= btnRect.x && x <= btnRect.x + btnRect.w && y >= btnRect.y && y <= btnRect.y + btnRect.h;
+      const hit = Math.hypot(x - play.x, y - play.y) <= play.r;
       if (hit) {
-        document.querySelector('[data-testid="canvas-result"]').textContent = 'Canvas button clicked!';
+        draw(true);
+        document.querySelector('[data-testid="canvas-result"]').textContent = 'Now playing!';
       }
     });
   </script>

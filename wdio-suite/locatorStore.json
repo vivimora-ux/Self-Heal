@@ -1,0 +1,43 @@
+{
+  "version": "1.0",
+  "locators": {
+    "form.email_input": {
+      "id": "form.email_input",
+      "selector": "[data-testid='email-input']",
+      "fallbacks": [
+        "#email"
+      ],
+      "intent": "Email address field on the checkout form",
+      "last_verified_at": "2026-09-24T16:25:36.478Z",
+      "history": []
+    },
+    "form.promo_code_input": {
+      "id": "form.promo_code_input",
+      "selector": "[data-testid='promo-code-input']",
+      "fallbacks": [
+        "#promo-code"
+      ],
+      "intent": "Promo code field on the checkout form",
+      "last_verified_at": "2026-09-24T16:25:36.629Z",
+      "history": []
+    },
+    "form.submit_button": {
+      "id": "form.submit_button",
+      "selector": "#submit-btn",
+      "fallbacks": [
+        "#submit-btn",
+        "button[type='submit']"
+      ],
+      "intent": "Primary submit button on the checkout form that finalizes the order",
+      "last_verified_at": "2026-09-24T16:25:36.663Z",
+      "history": [
+        {
+          "at": "2026-09-24T16:10:20.757Z",
+          "from": "[data-testid='submit-order-btn']",
+          "to": "#submit-btn",
+          "tier": 1
+        }
+      ]
+    }
+  }
+}

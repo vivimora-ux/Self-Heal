@@ -17,11 +17,11 @@ We need to trigger selector drift **on cue**, live, during the talk. An external
 
 Single small app (plain HTML/CSS/JS is fine — no framework needed unless it's genuinely easier with one). Three sections on one page, or three simple routes:
 
-1. **Form page** — a login or checkout-style form (email field, a submit button, maybe a promo code field). This is the DOM-based target for tiers 0–2a.
+1. **Form page** — a login or checkout-style form (email field, a submit button, maybe a promo code field). This is the DOM-based target for tiers 0–2.
    - Give elements clear, stable attributes by default (e.g. `data-testid="submit-order-btn"`).
-   - Support a drift mode that renames/removes that attribute and relabels the button text, to simulate both structural drift (tier 1) and semantic drift (tier 2a).
-2. **Shadow DOM component** — one element (e.g. a custom `<x-widget>` with a button inside an open shadow root) that a normal `$()` selector can't pierce without explicit shadow-root traversal. Used to justify escalating to tier 2b (vision) when DOM tooling genuinely can't help.
-3. **Canvas widget** — a small `<canvas>` with one drawn "button" (a rectangle + label, no real DOM node). Also used for tier 2b (vision). Keep this to a handful of lines — a colored rect the user can click via coordinates is enough.
+   - Support a drift mode that renames/removes that attribute and relabels the button text, to simulate both structural drift (tier 1) and semantic drift (tier 2).
+2. **Shadow DOM component** — one element (e.g. a custom `<x-widget>` with a button inside an open shadow root) that a normal `$()` selector can't pierce without explicit shadow-root traversal. Used to justify escalating to tier 3 (vision) when DOM tooling genuinely can't help.
+3. **Canvas widget** — a small `<canvas>` with one drawn "button" (a rectangle + label, no real DOM node). Also used for tier 3 (vision). Keep this to a handful of lines — a colored rect the user can click via coordinates is enough.
 
 Drift toggle mechanism: pick ONE simple approach and use it consistently — e.g. a `?drift=<scenario>` query param read on page load that swaps the relevant attribute/label via a tiny inline script. No build step, no environment juggling.
 
@@ -33,8 +33,13 @@ Page Object Model structure:
 wdio-suite/
   e2e/
     helpers/
-      locator.ts          <- the resolution engine (see tiers below)
+      locator.ts          <- orchestrator: calls tier0 -> tier1 -> tier2 -> tier3 in order
       locatorStore.ts      <- read/write locatorStore.json
+    tiers/
+      tier0/               <- stored selector
+      tier1/               <- fallback selector list
+      tier2/               <- LLM text resolution
+      tier3/                <- LLM vision resolution
     pageobjects/
       form.page.ts
       shadow.page.ts
@@ -50,9 +55,9 @@ wdio-suite/
 
 - **`specs/` never contain selectors.** They call page object methods only.
 - **`pageobjects/` use `locator('page.element')` instead of raw `$()` calls.**
-- **`helpers/locator.ts`** is where all tier logic lives.
+- **`helpers/locator.ts`** is the single entry point page objects call; it delegates to `tiers/tier0`, `tiers/tier1`, `tiers/tier2`, `tiers/tier3` in order and stops at the first that resolves.
 
-### Detection tiers (in `locator.ts`)
+### Detection tiers (in `tiers/`)
 
 Try each tier in order; stop at the first that resolves the element.
 
@@ -60,10 +65,8 @@ Try each tier in order; stop at the first that resolves the element.
 |---|---|---|---|
 | 0 — Stored selector | Try the selector already in `locatorStore.json` | WebdriverIO `$()` | Just touch `last_verified_at` |
 | 1 — Fallback selector list | Try a short ordered list of alternate selectors defined per element (e.g. `data-testid` → `id` → text content) | Plain TypeScript, no API call | Auto-update `locatorStore.json` with the selector that worked, log to `history` |
-| 2a — LLM text resolution | Send the element's stored `intent`, last-known snapshot, and the current accessibility tree to Claude | Claude API (text) | Never auto-commit — append to `pendingSelectors.md` |
-| 2b — LLM vision resolution | Send a screenshot + `intent` to Claude, get back click coordinates or a bounding box | Claude API (vision) | Never auto-commit — append to `pendingSelectors.md` |
-
-Tier 3 (full intent agent) is **out of scope for this POC** — not needed for the 5 demo steps below.
+| 2 — LLM text resolution | Send the element's stored `intent`, last-known snapshot, and the current accessibility tree to Claude | Claude API (text) | Never auto-commit — append to `pendingSelectors.md` |
+| 3 — LLM vision resolution | Send a screenshot + `intent` to Claude, get back click coordinates or a bounding box | Claude API (vision) | Never auto-commit — append to `pendingSelectors.md` |
 
 > Note: tier 1 is a **fallback selector list**, not a DOM-similarity scorer. This was a deliberate simplification for demo purposes — it's fast to build, and the audience can see exactly why it worked (the candidate list is visible in code). If we later want the "no one has to predict alternates in advance" version, that's a similarity-scorer upgrade for after the POC, not part of this build.
 
@@ -87,15 +90,15 @@ Tier 3 (full intent agent) is **out of scope for this POC** — not needed for t
 
 ### `pendingSelectors.md`
 
-Flat, human-readable, appended to whenever tier 2a or 2b resolves something. One entry per unresolved locator: id, old selector, proposed selector/coordinates, confidence, reasoning, timestamp. No PR automation — a human reads this file and updates the page object by hand.
+Flat, human-readable, appended to whenever tier 2 or 3 resolves something. One entry per unresolved locator: id, old selector, proposed selector/coordinates, confidence, reasoning, timestamp. No PR automation — a human reads this file and updates the page object by hand.
 
 ## The 5-step demo this needs to support
 
 1. All selectors correct → all tests pass (tier 0 only).
 2. One selector broken, no healing enabled → that test fails.
 3. Same break, fallback list enabled → tier 1 resolves it, test passes.
-4. A semantic rename (label changes, no good fallback matches) → tier 1 fails, tier 2a (Claude API text) resolves it, test passes, entry lands in `pendingSelectors.md`.
-5. Shadow DOM or canvas target, no usable DOM → tier 2a fails or is skipped, tier 2b (Claude API vision) resolves it, test passes.
+4. A semantic rename (label changes, no good fallback matches) → tier 1 fails, tier 2 (Claude API text) resolves it, test passes, entry lands in `pendingSelectors.md`.
+5. Shadow DOM or canvas target, no usable DOM → tier 2 fails or is skipped, tier 3 (Claude API vision) resolves it, test passes.
 
 ## Explicitly out of scope for this POC
 
@@ -103,13 +106,13 @@ Flat, human-readable, appended to whenever tier 2a or 2b resolves something. One
 - Auto-PR / committing fixes back to source automatically
 - Per-page-object store splitting (one shared `locatorStore.json` is enough)
 - Concurrency / parallel-worker locking on the store
-- Tier 3 (full intent agent)
+- A full intent agent beyond tier 3
 
 ## Tech stack
 
 - TypeScript throughout
 - WebdriverIO for the test suite
-- Claude API for tiers 2a and 2b (no other LLM vendor — keep one consistent API surface)
+- Claude API for tiers 2 and 3 (no other LLM vendor — keep one consistent API surface)
 - Demo app: plain HTML/CSS/JS, no framework unless it clearly simplifies the Shadow DOM or Canvas piece
 
 ## Working style for this repo

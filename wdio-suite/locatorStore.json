@@ -8,7 +8,7 @@
         "#email"
       ],
       "intent": "Email address field on the checkout form",
-      "last_verified_at": "2026-09-24T16:25:36.478Z",
+      "last_verified_at": "2026-09-24T16:59:47.447Z",
       "history": []
     },
     "form.promo_code_input": {
@@ -18,7 +18,7 @@
         "#promo-code"
       ],
       "intent": "Promo code field on the checkout form",
-      "last_verified_at": "2026-09-24T16:25:36.629Z",
+      "last_verified_at": "2026-09-24T16:59:47.491Z",
       "history": []
     },
     "form.submit_button": {
@@ -29,7 +29,7 @@
         "button[type='submit']"
       ],
       "intent": "Primary submit button on the checkout form that finalizes the order",
-      "last_verified_at": "2026-09-24T16:25:36.663Z",
+      "last_verified_at": "2026-09-24T16:59:47.521Z",
       "history": [
         {
           "at": "2026-09-24T16:10:20.757Z",

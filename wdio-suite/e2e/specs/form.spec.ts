@@ -1,4 +1,5 @@
 import { expect } from '@wdio/globals';
+
 import FormPage from '../pageobjects/form.page.js';
 
 describe('Checkout form', () => {

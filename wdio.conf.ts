@@ -1,3 +1,9 @@
+import { existsSync } from 'node:fs';
+import { VIEWS, printSummary, resetHealEvents, writeHtmlReport } from './wdio-suite/e2e/helpers/healReport.js';
+
+// Load GEMINI_API_KEY (used by tiers 2 and 3) from .env if present.
+if (existsSync('.env')) process.loadEnvFile('.env');
+
 export const config: WebdriverIO.Config = {
     //
     // ====================
@@ -23,7 +29,7 @@ export const config: WebdriverIO.Config = {
     // of the config file unless it's absolute.
     //
     specs: [
-        './test/specs/**/*.ts'
+        './wdio-suite/e2e/specs/**/*.ts'
     ],
     // Patterns to exclude.
     exclude: [
@@ -52,7 +58,12 @@ export const config: WebdriverIO.Config = {
     // https://saucelabs.com/platform/platform-configurator
     //
     capabilities: [{
-        browserName: 'chrome'
+        browserName: 'chrome',
+        // Classic WebDriver only: the BiDi socket drops during the slow tier 2 API call.
+        'wdio:enforceWebDriverClassic': true,
+        'goog:chromeOptions': {
+            args: []
+        }
     }],
 
     //
@@ -147,8 +158,10 @@ export const config: WebdriverIO.Config = {
      * @param {object} config wdio configuration object
      * @param {Array.<Object>} capabilities list of capabilities details
      */
-    // onPrepare: function (config, capabilities) {
-    // },
+    onPrepare: function () {
+        // Start each run with an empty heal report.
+        resetHealEvents();
+    },
     /**
      * Gets executed before a worker process is spawned and can be used to initialize specific service
      * for that worker as well as modify runtime environments in an async fashion.
@@ -254,8 +267,13 @@ export const config: WebdriverIO.Config = {
      * @param {Array.<Object>} capabilities list of capabilities details
      * @param {Array.<String>} specs List of spec file paths that ran
      */
-    // after: function (result, capabilities, specs) {
-    // },
+    after: async function (result, capabilities, specs) {
+        // Show the healing views (HEAL_VIEW) before the window is held open.
+        if (VIEWS.has('summary')) printSummary();
+        if (VIEWS.has('html')) writeHtmlReport();
+        // Keep the browser window open after the run so the final state is visible during the demo.
+        await browser.pause(3600000);
+    },
     /**
      * Gets executed right after terminating the webdriver session.
      * @param {object} config wdio configuration object

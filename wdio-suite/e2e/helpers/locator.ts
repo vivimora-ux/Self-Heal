@@ -10,9 +10,9 @@ const TIERS = [tier0, tier1, tier2, tier3];
 export async function locator(id: string) {
     const entry = getLocator(id);
 
-    for (const tier of TIERS) {
+    for (const [i, tier] of TIERS.entries()) {
         const el = await tier.resolve(entry);
-        if (el) return el;
+        if (el) { console.log(`[tier ${i}] ${id}`); return el; }
     }
 
     throw new Error(`locator("${id}"): no tier resolved an element`);

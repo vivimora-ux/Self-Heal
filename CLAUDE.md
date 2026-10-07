@@ -65,8 +65,8 @@ Try each tier in order; stop at the first that resolves the element.
 |---|---|---|---|
 | 0 — Stored selector | Try the selector already in `locatorStore.json` | WebdriverIO `$()` | Just touch `last_verified_at` |
 | 1 — Fallback selector list | Try a short ordered list of alternate selectors defined per element (e.g. `data-testid` → `id` → text content) | Plain TypeScript, no API call | Auto-update `locatorStore.json` with the selector that worked, log to `history` |
-| 2 — LLM text resolution | Send the element's stored `intent`, last-known snapshot, and the current accessibility tree to Claude | Claude API (text) | Never auto-commit — append to `pendingSelectors.md` |
-| 3 — LLM vision resolution | Send a screenshot + `intent` to Claude, get back click coordinates or a bounding box | Claude API (vision) | Never auto-commit — append to `pendingSelectors.md` |
+| 2 — LLM text resolution | Send the element's stored `intent`, last-known snapshot, and the current page HTML to Gemini | Gemini API (text) | Never auto-commit — append to `pendingSelectors.md`. *(Planned)* also returns a `drift`/`defect` verdict; only heals `drift` with confidence ≥ 0.7, otherwise throws "suspected defect" and stops escalation |
+| 3 — LLM vision resolution | Send a screenshot + `intent` to Gemini, get back click coordinates or a bounding box | Gemini API (vision) | Never auto-commit — append to `pendingSelectors.md` |
 
 > Note: tier 1 is a **fallback selector list**, not a DOM-similarity scorer. This was a deliberate simplification for demo purposes — it's fast to build, and the audience can see exactly why it worked (the candidate list is visible in code). If we later want the "no one has to predict alternates in advance" version, that's a similarity-scorer upgrade for after the POC, not part of this build.
 
@@ -92,13 +92,25 @@ Try each tier in order; stop at the first that resolves the element.
 
 Flat, human-readable, appended to whenever tier 2 or 3 resolves something. One entry per unresolved locator: id, old selector, proposed selector/coordinates, confidence, reasoning, timestamp. No PR automation — a human reads this file and updates the page object by hand.
 
-## The 5-step demo this needs to support
+### Healing visuals (`HEAL_VIEW`)
+
+Testers pick how healed selectors are shown with one env var (in `.env` or on the command line), implemented in `helpers/healReport.ts`:
+
+- `highlight`: outline + badge on the healed element in the browser (amber = tier 1, purple = AI), 1s pause
+- `screenshot`: full-page PNG in `wdio-suite/reports/heal-screenshots/`, embedded in `pendingSelectors.md`
+- `summary`: colored table in the terminal at the end of the run
+- `html`: `wdio-suite/reports/heal-report.html`, one card per healed element
+
+Combine with commas, or use `all` / `none`. Default: `highlight,summary`.
+
+## The demo steps this needs to support
 
 1. All selectors correct → all tests pass (tier 0 only).
 2. One selector broken, no healing enabled → that test fails.
 3. Same break, fallback list enabled → tier 1 resolves it, test passes.
-4. A semantic rename (label changes, no good fallback matches) → tier 1 fails, tier 2 (Claude API text) resolves it, test passes, entry lands in `pendingSelectors.md`.
-5. Shadow DOM or canvas target, no usable DOM → tier 2 fails or is skipped, tier 3 (Claude API vision) resolves it, test passes.
+4. A semantic rename (label changes, no good fallback matches) → tier 1 fails, tier 2 (Gemini API text) resolves it, test passes, entry lands in `pendingSelectors.md`.
+5. Shadow DOM or canvas target, no usable DOM → tier 2 fails or is skipped, tier 3 (Gemini API vision) resolves it, test passes.
+6. *(Planned — build only after tiers 2 and 3 are verified with the API key; drop to a "what's next" slide if time runs short.)* A real defect (`?drift=submit-removed`, the submit button is gone) → tiers 0–1 fail, tier 2 returns verdict `defect`, refuses to heal, the test fails with "suspected defect, not healed", and a ⚠ entry lands in `pendingSelectors.md`. Answers "doesn't self-healing hide real bugs?"
 
 ## Explicitly out of scope for this POC
 
@@ -107,12 +119,15 @@ Flat, human-readable, appended to whenever tier 2 or 3 resolves something. One e
 - Per-page-object store splitting (one shared `locatorStore.json` is enough)
 - Concurrency / parallel-worker locking on the store
 - A full intent agent beyond tier 3
+- Third-party judge models (e.g. Jev from TypeSafe AI) — would break the single-vendor rule; possible future comparison
+- Per-step AI page checks ("is an error state showing?") on every test step
+- A benchmark comparing healing strategies on accuracy, speed, and cost
 
 ## Tech stack
 
 - TypeScript throughout
 - WebdriverIO for the test suite
-- Claude API for tiers 2 and 3 (no other LLM vendor — keep one consistent API surface)
+- Gemini API for tiers 2 and 3, called with plain `fetch` (no SDK; no other LLM vendor — keep one consistent API surface)
 - Demo app: plain HTML/CSS/JS, no framework unless it clearly simplifies the Shadow DOM or Canvas piece
 
 ## Working style for this repo

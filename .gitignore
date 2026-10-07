@@ -12,6 +12,7 @@ wdio-suite/allure-report/
 wdio-suite/reports/
 wdio-suite/screenshots/
 wdio-suite/logs/
+wdio-suite/pendingSelectors.md
 
 # Env / secrets
 .env

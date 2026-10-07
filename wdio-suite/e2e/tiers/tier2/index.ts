@@ -1,5 +1,6 @@
 import { $, browser } from '@wdio/globals';
 import type { LocatorEntry } from '../../helpers/locatorStore.js';
+import { askGemini } from '../../helpers/gemini.js';
 import { appendPending } from '../../helpers/pendingSelectors.js';
 import { recordHeal } from '../../helpers/healReport.js';
 
@@ -22,17 +23,8 @@ export async function resolve(entry: LocatorEntry) {
         return body.innerHTML;
     });
 
-    // Plain fetch to the Gemini REST API. Fail fast (30s) so a slow call does not stall the run.
-    const model = process.env.GEMINI_MODEL ?? 'gemini-3.8-flash';
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY ?? '' },
-        signal: AbortSignal.timeout(30_000),
-        body: JSON.stringify({
-            generationConfig: { responseMimeType: 'application/json', responseSchema: RESPONSE_SCHEMA },
-            contents: [{
-                parts: [{
-                    text: `A UI test lost track of an element. Find it in the current page and return one CSS selector for it.
+    const proposal = await askGemini<{ selector: string; confidence: number; reasoning: string }>([{
+        text: `A UI test lost track of an element. Find it in the current page and return one CSS selector for it.
 
 Intent: ${entry.intent}
 Old selector (no longer matches): ${entry.selector}
@@ -40,21 +32,14 @@ Old fallbacks (also no longer match): ${entry.fallbacks.join(', ')}
 
 Current page HTML:
 ${dom}`,
-                }],
-            }],
-        }),
-    });
-    if (!res.ok) throw new Error(`Gemini ${res.status}: ${await res.text()}`);
-
-    const data = await res.json();
-    const text: string | undefined = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) return undefined;
-
-    const proposal = JSON.parse(text) as { selector: string; confidence: number; reasoning: string };
-    if (!proposal.selector) return undefined;
+    }], RESPONSE_SCHEMA);
+    if (!proposal?.selector) return undefined;
 
     const el = $(proposal.selector);
     if (!(await el.isExisting())) return undefined;
+
+    // A <canvas> or shadow host is a container, not the element: clicking it would be a guess. Leave it to tier 3 (vision).
+    if (await browser.execute((node) => node.tagName === 'CANVAS' || !!node.shadowRoot, await el)) return undefined;
 
     const screenshot = await recordHeal(el, {
         id: entry.id,

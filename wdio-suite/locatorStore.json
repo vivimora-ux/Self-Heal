@@ -38,6 +38,24 @@
           "tier": 1
         }
       ]
+    },
+    "shadow.activate_button": {
+      "id": "shadow.activate_button",
+      "selector": "[data-testid='shadow-action-btn']",
+      "fallbacks": [
+        "x-widget button"
+      ],
+      "intent": "Activate button inside the x-widget component",
+      "last_verified_at": "",
+      "history": []
+    },
+    "canvas.play_button": {
+      "id": "canvas.play_button",
+      "selector": "[data-testid='canvas-play-btn']",
+      "fallbacks": [],
+      "intent": "Round play button in the middle of the Now Playing video player",
+      "last_verified_at": "",
+      "history": []
     }
   }
 }

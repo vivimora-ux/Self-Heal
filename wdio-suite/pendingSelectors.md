@@ -2,12 +2,20 @@
 
 Proposed by LLM tiers — review and update the page object / store by hand.
 
-## form.promo_code_input
+## shadow.activate_button
 
-- **Tier:** 2
-- **Old selector:** `[data-testid='promo-code-input']`
-- **Proposed:** `#discount-code`
-- **Confidence:** 0.98
-- **Reasoning:** The promo code input field previously had a promo-related identifier and is now implemented as an input with id 'discount-code' associated with the 'Discount code' label.
-- **Timestamp:** 2026-10-06T19:13:23.849Z
-- **Screenshot:** ![form.promo_code_input](reports/heal-screenshots/form.promo_code_input.png)
+- **Tier:** 3
+- **Old selector:** `[data-testid='shadow-action-btn']`
+- **Proposed:** `click @ (403, 135), box [131, 300, 170, 372] /1000`
+- **Confidence:** 0.99
+- **Reasoning:** The black button labeled 'Activate' is clearly visible below the 'Shadow DOM Widget' heading.
+- **Timestamp:** 2026-10-07T13:22:49.261Z
+
+## canvas.play_button
+
+- **Tier:** 3
+- **Old selector:** `[data-testid='canvas-play-btn']`
+- **Proposed:** `click @ (521, 247), box [243, 410, 307, 458] /1000`
+- **Confidence:** 0.95
+- **Reasoning:** The round play button is centered within the black video player area under the 'Now Playing' header.
+- **Timestamp:** 2026-10-07T13:23:00.092Z

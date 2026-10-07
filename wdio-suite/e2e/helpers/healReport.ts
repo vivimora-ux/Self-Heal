@@ -23,20 +23,24 @@ export const VIEWS = new Set(raw === 'all' ? ['highlight', 'screenshot', 'summar
 
 const readEvents = (): HealEvent[] => (existsSync(EVENTS_PATH) ? JSON.parse(readFileSync(EVENTS_PATH, 'utf-8')) : []);
 
-/** Called by a tier when it heals an element: highlight it, screenshot it, and log the event. */
-export async function recordHeal(el: ChainablePromiseElement, event: HealEvent) {
+type Rect = { x: number; y: number; width: number; height: number };
+
+/** Called by a tier when it heals an element (tiers 1-2) or a screen area (tier 3): highlight it, screenshot it, log it. */
+export async function recordHeal(target: ChainablePromiseElement | Rect, event: HealEvent) {
     if (VIEWS.has('highlight') || VIEWS.has('screenshot')) {
+        const rect = 'then' in target ? await browser.execute((node) => node.getBoundingClientRect().toJSON(), await target) : target;
         const color = event.tier === 1 ? '#f59e0b' : '#a855f7';
-        const label = `${event.tier === 1 ? 'Fallback' : 'AI'} · ${event.to}${event.confidence !== undefined ? ` · ${event.confidence}` : ''}`;
-        await browser.execute((node, color, label) => {
-            const r = node.getBoundingClientRect();
-            node.style.outline = `3px solid ${color}`;
-            node.style.outlineOffset = '2px';
+        const kind = ['', 'Fallback', 'AI', 'AI vision'][event.tier];
+        const label = `${kind} · ${event.to}${event.confidence !== undefined ? ` · ${event.confidence}` : ''}`;
+        // Overlay box + badge, both click-through so they never block the test's next action.
+        await browser.execute((r, color, label) => {
+            const box = document.createElement('div');
+            box.style.cssText = `position:absolute;left:${r.x + scrollX - 2}px;top:${r.y + scrollY - 2}px;width:${r.width + 4}px;height:${r.height + 4}px;outline:3px solid ${color};pointer-events:none;z-index:9999`;
             const badge = document.createElement('div');
             badge.textContent = label;
-            badge.style.cssText = `position:absolute;left:${r.left + scrollX}px;top:${r.top + scrollY - 26}px;background:${color};color:#fff;font:12px/1 sans-serif;padding:5px 8px;border-radius:4px;z-index:9999`;
-            document.body.appendChild(badge);
-        }, await el, color, label);
+            badge.style.cssText = `position:absolute;left:${r.x + scrollX}px;top:${r.y + scrollY - 28}px;background:${color};color:#fff;font:12px/1 sans-serif;padding:5px 8px;border-radius:4px;pointer-events:none;z-index:9999`;
+            document.body.append(box, badge);
+        }, rect, color, label);
     }
     if (VIEWS.has('screenshot')) {
         mkdirSync(SHOTS_DIR, { recursive: true });
@@ -76,7 +80,7 @@ export function writeHtmlReport() {
     const esc = (s = '') => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
     const cards = events.map((e) => `
 <section style="border-left:6px solid ${e.tier === 1 ? '#f59e0b' : '#a855f7'}">
-  <h2>${esc(e.id)} <small>tier ${e.tier} · ${e.tier === 1 ? 'fallback' : 'AI suggestion'}</small></h2>
+  <h2>${esc(e.id)} <small>tier ${e.tier} · ${['', 'fallback', 'AI suggestion', 'AI vision'][e.tier]}</small></h2>
   <p><del>${esc(e.from)}</del> → <code>${esc(e.to)}</code></p>
   ${e.confidence !== undefined ? `<p>Confidence <meter value="${e.confidence}"></meter> ${e.confidence}</p>` : ''}
   ${e.reasoning ? `<p>${esc(e.reasoning)}</p>` : ''}

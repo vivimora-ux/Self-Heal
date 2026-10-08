@@ -11,6 +11,7 @@ export interface PendingEntry {
     confidence: number;
     reasoning: string;
     screenshot?: string; // relative to wdio-suite/reports/
+    defect?: boolean; // tier 2 refused to heal: likely a real bug, not drift
 }
 
 /** Appends a tier 2/3 proposal for a human to review. Never touches locatorStore.json. */
@@ -19,7 +20,7 @@ export function appendPending(entry: PendingEntry) {
         writeFileSync(PENDING_PATH, '# Pending selectors\n\nProposed by LLM tiers — review and update the page object / store by hand.\n');
     }
     appendFileSync(PENDING_PATH, `
-## ${entry.id}
+## ${entry.defect ? `⚠ ${entry.id} — suspected defect, not healed` : entry.id}
 
 - **Tier:** ${entry.tier}
 - **Old selector:** \`${entry.oldSelector}\`

@@ -103,6 +103,12 @@ Testers pick how healed selectors are shown with one env var (in `.env` or on th
 
 Combine with commas, or use `all` / `none`. Default: `highlight,summary`.
 
+### Adopting in another project
+
+1. Copy `e2e/helpers/` and `e2e/tiers/` into the project and set `GEMINI_API_KEY`.
+2. Run `npm run seed:store` (`wdio-suite/scripts/seedStore.ts [pageobjectsDir] [--dry-run]`): it scans `*.page.ts` for literal `$('...')` calls and merges new entries into `locatorStore.json`, skipping ids or selectors already in the store. Safe to re-run.
+3. Replace each reported `$()` call with `locator('<id>')` and write a real `intent` for every `TODO` (tiers 2–3 depend on it).
+
 ## The demo steps this needs to support
 
 1. All selectors correct → all tests pass (tier 0 only).

@@ -40,6 +40,10 @@
         label.textContent = 'Discount code';
         label.setAttribute('for', 'discount-code');
       },
+      'submit-removed': () => {
+        // A real bug, not drift: the submit button is gone -> healing must refuse, the test must fail.
+        document.getElementById('submit-btn').remove();
+      },
     };
 
     const scenario = new URLSearchParams(location.search).get('drift');

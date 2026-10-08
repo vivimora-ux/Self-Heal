@@ -8,14 +8,17 @@
     "@wdio/local-runner": "^9.32.0",
     "@wdio/mocha-framework": "^9.32.0",
     "@wdio/spec-reporter": "^9.32.0",
-    "expect-webdriverio": "^6.1.0"
+    "expect-webdriverio": "^6.1.0",
+    "tsx": "^4.23.15"
   },
   "scripts": {
     "wdio": "wdio run ./wdio.conf.ts",
     "clean:pending": "rm -f ./wdio-suite/pendingSelectors.md",
+    "seed:store": "tsx ./wdio-suite/scripts/seedStore.ts",
     "test:tier0": "wdio run ./wdio.conf.ts --spec ./wdio-suite/e2e/specs/form.plain.spec.ts",
     "test:tier1": "wdio run ./wdio.conf.ts --spec ./wdio-suite/e2e/specs/form.spec.ts",
     "test:tier2": "wdio run ./wdio.conf.ts --spec ./wdio-suite/e2e/specs/form.semantic.spec.ts",
-    "test:tier3": "wdio run ./wdio.conf.ts --spec ./wdio-suite/e2e/specs/shadow.spec.ts --spec ./wdio-suite/e2e/specs/canvas.spec.ts"
+    "test:tier3": "wdio run ./wdio.conf.ts --spec ./wdio-suite/e2e/specs/shadow.spec.ts --spec ./wdio-suite/e2e/specs/canvas.spec.ts",
+    "test:defect": "wdio run ./wdio.conf.ts --spec ./wdio-suite/e2e/specs/form.defect.spec.ts"
   }
 }

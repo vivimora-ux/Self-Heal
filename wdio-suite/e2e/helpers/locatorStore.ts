@@ -12,16 +12,16 @@ export interface LocatorEntry {
     history: Array<{ at: string; from: string; to: string; tier: number }>;
 }
 
-interface LocatorStoreFile {
+export interface LocatorStoreFile {
     version: string;
     locators: Record<string, LocatorEntry>;
 }
 
-function readStore(): LocatorStoreFile {
+export function readStore(): LocatorStoreFile {
     return JSON.parse(readFileSync(STORE_PATH, 'utf-8'));
 }
 
-function writeStore(store: LocatorStoreFile) {
+export function writeStore(store: LocatorStoreFile) {
     writeFileSync(STORE_PATH, JSON.stringify(store, null, 2) + '\n');
 }
 

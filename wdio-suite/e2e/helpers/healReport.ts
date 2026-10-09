@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { browser } from '@wdio/globals';
+import { sameQuotes } from './pageObjectScan.js';
 import type { ChainablePromiseElement } from 'webdriverio';
 
 const REPORTS_DIR = fileURLToPath(new URL('../../reports/', import.meta.url));
@@ -48,7 +49,9 @@ async function highlight(target: ChainablePromiseElement | Rect, color: string, 
 export async function recordImpactFailure(error: Error | undefined) {
     const marksPath = process.env.QA_IMPACT_MARKS!;
     const marks: Array<{ id: string; from: string; to: string; confidence?: number }> = JSON.parse(readFileSync(marksPath, 'utf-8'));
-    const failed = marks.find((m) => String(error?.message).includes(`locator("${m.id}")`));
+    // locator() failures name the id; raw $() failures (e.g. expect($(...)).toHaveText) name the selector.
+    const message = sameQuotes(String(error?.message));
+    const failed = marks.find((m) => message.includes(`locator('${m.id}')`) || (!!m.from && message.includes(sameQuotes(m.from))));
     if (!failed) return; // only failures caused by a flagged locator
     // A test stops at its first failure, so mark every flagged locator on this page (ids are "page.element").
     const page = failed.id.split('.')[0];

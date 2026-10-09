@@ -1,8 +1,11 @@
 import { existsSync } from 'node:fs';
-import { VIEWS, printSummary, resetHealEvents, writeHtmlReport } from './wdio-suite/e2e/helpers/healReport.js';
+import { VIEWS, printSummary, recordImpactFailure, resetHealEvents, writeHtmlReport } from './wdio-suite/e2e/helpers/healReport.js';
 
 // Load GEMINI_API_KEY (used by tiers 2 and 3) from .env if present.
 if (existsSync('.env')) process.loadEnvFile('.env');
+
+// CI (or HEADLESS=1): no visible browser and no hold-open pause at the end.
+const HEADLESS = !!process.env.CI || process.env.HEADLESS === '1';
 
 export const config: WebdriverIO.Config = {
     //
@@ -62,7 +65,7 @@ export const config: WebdriverIO.Config = {
         // Classic WebDriver only: the BiDi socket drops during the slow tier 2 API call.
         'wdio:enforceWebDriverClassic': true,
         'goog:chromeOptions': {
-            args: []
+            args: HEADLESS ? ['--headless=new', '--window-size=1280,900'] : []
         }
     }],
 
@@ -241,8 +244,10 @@ export const config: WebdriverIO.Config = {
      * @param {boolean} result.passed    true if test has passed, otherwise false
      * @param {object}  result.retries   information about spec related retries, e.g. `{ attempts: 0, limit: 0 }`
      */
-    // afterTest: function(test, context, { error, result, duration, passed, retries }) {
-    // },
+    afterTest: async function (_test, _context, { error, passed }) {
+        // PR impact check only: screenshot the real failure for the Jira ticket.
+        if (!passed && process.env.QA_IMPACT_MARKS) await recordImpactFailure(error);
+    },
 
 
     /**
@@ -272,7 +277,7 @@ export const config: WebdriverIO.Config = {
         if (VIEWS.has('summary')) printSummary();
         if (VIEWS.has('html')) writeHtmlReport();
         // Keep the browser window open after the run so the final state is visible during the demo.
-        await browser.pause(3600000);
+        if (!HEADLESS) await browser.pause(3600000);
     },
     /**
      * Gets executed right after terminating the webdriver session.

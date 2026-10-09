@@ -117,7 +117,8 @@ Healing reacts after a test breaks; this warns QA before. `.github/workflows/qa-
 2. Build the inventory: locator id → page objects using `locator('<id>')` → specs importing them.
 3. Free rule check: a stored selector's value appears on a removed diff line.
 4. Ask Gemini "do these changes affect any of these tests?" (falls back to the rule check without a key or on error).
-5. If impacted: write `wdio-suite/reports/qa-impact.md`, create a Jira Task (label `qa-impact`) when all `JIRA_*` vars are set, otherwise dry run, and comment on the PR.
+5. If impacted: run the affected specs headless with `HEALING=off`. `afterTest` (`recordImpactFailure` in `healReport.ts`) saves one screenshot per broken locator: the real failure (red error bar) with Gemini's suggested selector highlighted in purple, old → new and confidence.
+6. Write `wdio-suite/reports/qa-impact.md`, create a Jira Task (label `qa-impact`) with the screenshot attached when all `JIRA_*` vars are set, otherwise dry run, and comment on the PR. The Action also keeps the screenshots as a run artifact.
 
 Never blocks the PR. Secrets: `GEMINI_API_KEY`, optional `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, `JIRA_PROJECT_KEY`.
 

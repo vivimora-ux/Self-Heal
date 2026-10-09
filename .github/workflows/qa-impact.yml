@@ -31,3 +31,10 @@ jobs:
           JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
           JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
           JIRA_PROJECT_KEY: ${{ secrets.JIRA_PROJECT_KEY }}
+      - name: Keep screenshots with the run
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-impact-screenshots
+          path: wdio-suite/reports/qa-impact/*.png
+          if-no-files-found: ignore

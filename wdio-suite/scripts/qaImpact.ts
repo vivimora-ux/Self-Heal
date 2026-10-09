@@ -1,7 +1,8 @@
 // PR impact check: "Do these changes affect any of our existing tests?" If yes, open a QA ticket.
 // Usage: npx tsx wdio-suite/scripts/qaImpact.ts <baseRef>   (e.g. main, origin/main)
-import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { askGemini } from '../e2e/helpers/gemini.js';
 import { readStore } from '../e2e/helpers/locatorStore.js';
 
@@ -32,7 +33,7 @@ const keyValue = (selector: string) => selector.match(/['"]([^'"]+)['"]/)?.[1] ?
 const hints = inventory.filter((i) => { const v = keyValue(i.selector); return v && removed.includes(v); });
 
 // 4. Ask the AI agent
-interface Item { locator_id: string; what_changed: string; old_selector: string; suggested_selector: string; affected_specs: string[]; severity: string; reasoning: string }
+interface Item { locator_id: string; what_changed: string; old_selector: string; suggested_selector: string; affected_specs: string[]; severity: string; confidence?: number; reasoning: string }
 const SCHEMA = {
     type: 'OBJECT',
     properties: {
@@ -43,15 +44,16 @@ const SCHEMA = {
             suggested_selector: { type: 'STRING', description: 'New selector, or "" if the element was removed' },
             affected_specs: { type: 'ARRAY', items: { type: 'STRING' } },
             severity: { type: 'STRING', enum: ['breaks', 'review'], description: 'breaks = selector no longer matches; review = still matches but label/behaviour changed' },
+            confidence: { type: 'NUMBER', description: '0 to 1: how sure you are the suggested selector is the same element' },
             reasoning: { type: 'STRING' },
-        }, required: ['locator_id', 'what_changed', 'old_selector', 'suggested_selector', 'affected_specs', 'severity', 'reasoning'] } },
+        }, required: ['locator_id', 'what_changed', 'old_selector', 'suggested_selector', 'affected_specs', 'severity', 'confidence', 'reasoning'] } },
     },
     required: ['impacted', 'summary', 'items'],
 };
-const ruleResult = { impacted: hints.length > 0, summary: 'Rule check only (Gemini not available).', items: hints.map((h) => ({
+const ruleResult = { impacted: hints.length > 0, summary: 'Rule check only (Gemini not available).', items: hints.map((h): Item => ({
     locator_id: h.id, what_changed: 'Selector value removed in this PR', old_selector: h.selector,
     suggested_selector: '', affected_specs: h.specs, severity: 'breaks', reasoning: 'Text rule match' })) };
-const result = !process.env.GEMINI_API_KEY ? ruleResult : await askGemini<typeof ruleResult & { items: Item[] }>([{
+const result = !process.env.GEMINI_API_KEY ? ruleResult : await askGemini<typeof ruleResult>([{
         text: `You review pull requests for a QA team. Do these code changes affect any of our existing UI tests?
 Only report a locator if the change makes its selector stop matching, or changes the element's label/behaviour a test may rely on.
 
@@ -70,7 +72,24 @@ if (!result?.impacted || !result.items.length) {
     process.exit(0);
 }
 
-// 5. Write the ticket, create it in Jira if configured, comment on the PR
+// 5. Screenshot the real failure: run the affected specs with healing off. The afterTest hook highlights
+//    Gemini's suggested selector (old → new, confidence) on the failing page — one image per locator.
+const SHOTS = 'wdio-suite/reports/qa-impact/';
+rmSync(SHOTS, { recursive: true, force: true });
+mkdirSync(SHOTS, { recursive: true });
+const marks = result.items.map((i) => ({ id: i.locator_id, from: i.old_selector, to: i.suggested_selector, confidence: i.confidence }));
+writeFileSync(`${SHOTS}marks.json`, JSON.stringify(marks));
+
+const specsToRun = [...new Set(result.items.flatMap((i) => i.affected_specs))].filter((s) => existsSync(`${SPEC_DIR}/${s}`));
+spawnSync('npx', ['wdio', 'run', './wdio.conf.ts', ...specsToRun.flatMap((s) => ['--spec', `${SPEC_DIR}/${s}`])], {
+    stdio: 'inherit',
+    env: { ...process.env, HEALING: 'off', HEADLESS: '1', HEAL_VIEW: 'none', QA_IMPACT_MARKS: resolve(`${SHOTS}marks.json`) },
+});
+// One image per locator: prefer the clean page over a demo ?drift= page (<id>.drift.png).
+const pngs = readdirSync(SHOTS).filter((f) => f.endsWith('.png'));
+const screenshots = pngs.filter((f) => !f.endsWith('.drift.png') || !pngs.includes(f.replace('.drift.png', '.png'))).map((f) => SHOTS + f);
+
+// 6. Write the ticket, create it in Jira if configured (with the screenshot), comment on the PR
 const body = [
     `QA impact check${pr ? ` for PR #${pr}` : ''}: ${result.items.length} test selector(s) affected`, '',
     result.summary, '',
@@ -79,36 +98,47 @@ const body = [
         `  - What changed: ${i.what_changed}`,
         `  - Old selector: ${i.old_selector}`,
         `  - Suggested selector: ${i.suggested_selector || 'none (element removed?)'}`,
+        `  - Confidence: ${i.confidence !== undefined ? `${Math.round(i.confidence * 100)}%` : 'n/a (rule check)'}`,
         `  - Affected specs: ${i.affected_specs.join(', ') || 'unknown'}`,
         `  - Reasoning: ${i.reasoning}`,
     ].join('\n')),
+    '', `Screenshots (${screenshots.length}): the real test failure with healing off, Gemini's suggested selector highlighted in purple.`,
 ].join('\n');
 
-const ticket = await createJiraTicket(`QA: ${pr ? `PR #${pr}` : 'PR'} affects ${result.items.length} test selector(s)`, body);
+const ticket = await createJiraTicket(`QA: ${pr ? `PR #${pr}` : 'PR'} affects ${result.items.length} test selector(s)`, body, screenshots);
 const full = `${body}\n\n${ticket ? `Jira: ${ticket}` : 'Dry run: Jira not configured, no ticket created.'}\n`;
 mkdirSync('wdio-suite/reports', { recursive: true });
 writeFileSync(REPORT, full);
 console.log(full);
 comment(full);
 
-async function createJiraTicket(summary: string, description: string) {
+async function createJiraTicket(summary: string, description: string, files: string[]) {
     const { JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_TOKEN, JIRA_PROJECT_KEY } = process.env;
     const missing = ['JIRA_BASE_URL', 'JIRA_EMAIL', 'JIRA_API_TOKEN', 'JIRA_PROJECT_KEY'].filter((k) => !process.env[k]);
     if (missing.length) { console.warn(`Jira not configured, missing: ${missing.join(', ')}`); return undefined; }
     if (!JIRA_BASE_URL || !JIRA_EMAIL || !JIRA_API_TOKEN || !JIRA_PROJECT_KEY) return undefined;
     const site = JIRA_BASE_URL.replace(/\/+$/, '');
+    const authorization = `Basic ${Buffer.from(`${JIRA_EMAIL}:${JIRA_API_TOKEN}`).toString('base64')}`;
     const res = await fetch(`${site}/rest/api/2/issue`, {
         method: 'POST',
-        headers: {
-            'content-type': 'application/json',
-            authorization: `Basic ${Buffer.from(`${JIRA_EMAIL}:${JIRA_API_TOKEN}`).toString('base64')}`,
-        },
+        headers: { 'content-type': 'application/json', authorization },
         body: JSON.stringify({ fields: {
             project: { key: JIRA_PROJECT_KEY }, issuetype: { name: 'Task' }, labels: ['qa-impact'], summary, description,
         } }),
     });
     if (!res.ok) { console.warn(`Jira ${res.status}: ${await res.text()}`); return undefined; }
-    return `${site}/browse/${(await res.json()).key}`;
+    const { key } = await res.json();
+
+    // Attach screenshots (Jira needs the no-check header on uploads)
+    if (files.length) {
+        const form = new FormData();
+        for (const f of files) form.append('file', new Blob([readFileSync(f)], { type: 'image/png' }), f.split('/').pop());
+        const up = await fetch(`${site}/rest/api/2/issue/${key}/attachments`, {
+            method: 'POST', headers: { authorization, 'X-Atlassian-Token': 'no-check' }, body: form,
+        });
+        if (!up.ok) console.warn(`Jira attachments ${up.status}: ${await up.text()}`);
+    }
+    return `${site}/browse/${key}`;
 }
 
 function comment(text: string) {

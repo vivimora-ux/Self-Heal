@@ -15,6 +15,7 @@
     "wdio": "wdio run ./wdio.conf.ts",
     "clean:pending": "rm -f ./wdio-suite/pendingSelectors.md",
     "seed:store": "tsx ./wdio-suite/scripts/seedStore.ts",
+    "qa:impact": "tsx ./wdio-suite/scripts/qaImpact.ts",
     "test:tier0": "wdio run ./wdio.conf.ts --spec ./wdio-suite/e2e/specs/form.plain.spec.ts",
     "test:tier1": "wdio run ./wdio.conf.ts --spec ./wdio-suite/e2e/specs/form.spec.ts",
     "test:tier2": "wdio run ./wdio.conf.ts --spec ./wdio-suite/e2e/specs/form.semantic.spec.ts",

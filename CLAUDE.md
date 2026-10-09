@@ -109,7 +109,21 @@ Combine with commas, or use `all` / `none`. Default: `highlight,summary`.
 2. Run `npm run seed:store` (`wdio-suite/scripts/seedStore.ts [pageobjectsDir] [--dry-run]`): it scans `*.page.ts` for literal `$('...')` calls and merges new entries into `locatorStore.json`, skipping ids or selectors already in the store. Safe to re-run.
 3. Replace each reported `$()` call with `locator('<id>')` and write a real `intent` for every `TODO` (tiers 2–3 depend on it).
 
+### PR impact check
+
+Healing reacts after a test breaks; this warns QA before. `.github/workflows/qa-impact.yml` runs `wdio-suite/scripts/qaImpact.ts` on every PR (locally: `npm run qa:impact -- main`):
+
+1. `git diff base...HEAD -- demo-app/`; no changes → stop.
+2. Build the inventory: locator id → page objects using `locator('<id>')` → specs importing them.
+3. Free rule check: a stored selector's value appears on a removed diff line.
+4. Ask Gemini "do these changes affect any of these tests?" (falls back to the rule check without a key or on error).
+5. If impacted: write `wdio-suite/reports/qa-impact.md`, create a Jira Task (label `qa-impact`) when all `JIRA_*` vars are set, otherwise dry run, and comment on the PR.
+
+Never blocks the PR. Secrets: `GEMINI_API_KEY`, optional `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, `JIRA_PROJECT_KEY`.
+
 ## The demo steps this needs to support
+
+0. A PR renames a selector the tests use → the PR check comments on the PR and opens a QA ticket before anything breaks.
 
 1. All selectors correct → all tests pass (tier 0 only).
 2. One selector broken, no healing enabled → that test fails.

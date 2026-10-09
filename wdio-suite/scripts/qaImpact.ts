@@ -93,6 +93,8 @@ comment(full);
 
 async function createJiraTicket(summary: string, description: string) {
     const { JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_TOKEN, JIRA_PROJECT_KEY } = process.env;
+    const missing = ['JIRA_BASE_URL', 'JIRA_EMAIL', 'JIRA_API_TOKEN', 'JIRA_PROJECT_KEY'].filter((k) => !process.env[k]);
+    if (missing.length) { console.warn(`Jira not configured, missing: ${missing.join(', ')}`); return undefined; }
     if (!JIRA_BASE_URL || !JIRA_EMAIL || !JIRA_API_TOKEN || !JIRA_PROJECT_KEY) return undefined;
     const site = JIRA_BASE_URL.replace(/\/+$/, '');
     const res = await fetch(`${site}/rest/api/2/issue`, {

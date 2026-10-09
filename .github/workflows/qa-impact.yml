@@ -1,0 +1,33 @@
+# On every PR: ask an AI agent whether the changes affect existing tests, and open a QA ticket if they do.
+name: QA impact check
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  qa-impact:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Check PR for test impact
+        run: npx tsx wdio-suite/scripts/qaImpact.ts origin/${{ github.base_ref }}
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_PROJECT_KEY: ${{ secrets.JIRA_PROJECT_KEY }}

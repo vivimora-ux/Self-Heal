@@ -72,8 +72,8 @@ if (!result?.impacted || !result.items.length) {
     process.exit(0);
 }
 
-// 5. Screenshot the real failure: run the affected specs with healing off. The afterTest hook highlights
-//    Gemini's suggested selector (old → new, confidence) on the failing page — one image per locator.
+// 5. Screenshot the real failure: run the affected specs with healing off. The afterTest hook marks every
+//    broken locator on the failing page (old in red, Gemini's suggestion in purple) — one image per page.
 const SHOTS = 'wdio-suite/reports/qa-impact/';
 rmSync(SHOTS, { recursive: true, force: true });
 mkdirSync(SHOTS, { recursive: true });
@@ -85,7 +85,7 @@ spawnSync('npx', ['wdio', 'run', './wdio.conf.ts', ...specsToRun.flatMap((s) => 
     stdio: 'inherit',
     env: { ...process.env, HEALING: 'off', HEADLESS: '1', HEAL_VIEW: 'none', QA_IMPACT_MARKS: resolve(`${SHOTS}marks.json`) },
 });
-// One image per locator: prefer the clean page over a demo ?drift= page (<id>.drift.png).
+// One image per page: prefer the clean page over a demo ?drift= page (<page>.drift.png).
 const pngs = readdirSync(SHOTS).filter((f) => f.endsWith('.png'));
 const screenshots = pngs.filter((f) => !f.endsWith('.drift.png') || !pngs.includes(f.replace('.drift.png', '.png'))).map((f) => SHOTS + f);
 
@@ -102,11 +102,13 @@ const body = [
         `  - Affected specs: ${i.affected_specs.join(', ') || 'unknown'}`,
         `  - Reasoning: ${i.reasoning}`,
     ].join('\n')),
-    '', `Screenshots (${screenshots.length}): the real test failure with healing off, Gemini's suggested selector highlighted in purple.`,
+    '', `Screenshots (${screenshots.length}, one per page): the real test failure with healing off. Every broken selector on the page is marked: old in red, AI suggestion in purple.`,
 ].join('\n');
 
 const ticket = await createJiraTicket(`QA: ${pr ? `PR #${pr}` : 'PR'} affects ${result.items.length} test selector(s)`, body, screenshots);
-const full = `${body}\n\n${ticket ? `Jira: ${ticket}` : 'Dry run: Jira not configured, no ticket created.'}\n`;
+const run = process.env.GITHUB_RUN_ID && `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+const where = [ticket && 'attached to the Jira ticket', run && `downloadable from the run (qa-impact-screenshots): ${run}`].filter(Boolean).join('; ');
+const full = `${body}${where ? ` Screenshots ${where}.` : ''}\n\n${ticket ? `Jira: ${ticket}` : 'Dry run: Jira not configured, no ticket created.'}\n`;
 mkdirSync('wdio-suite/reports', { recursive: true });
 writeFileSync(REPORT, full);
 console.log(full);

@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { resolve } from 'node:path';
 import { askGemini } from '../e2e/helpers/gemini.js';
 import { readStore } from '../e2e/helpers/locatorStore.js';
+import { sameQuotes, scanPageObjects } from '../e2e/helpers/pageObjectScan.js';
 
 if (existsSync('.env')) process.loadEnvFile('.env');
 const base = process.argv[2] ?? 'main';
@@ -21,11 +22,21 @@ if (!diff.trim()) { console.log('No app changes, no QA impact.'); process.exit(0
 const read = (dir: string) => readdirSync(dir).map((f) => ({ f, src: readFileSync(`${dir}/${f}`, 'utf-8') }));
 const pageObjects = read(PO_DIR);
 const specs = read(SPEC_DIR);
-const inventory = Object.values(readStore().locators).map(({ id, selector, intent }) => {
-    const pos = pageObjects.filter((p) => p.src.includes(`locator('${id}')`)).map((p) => p.f);
-    const usedBy = specs.filter((s) => pos.some((po) => s.src.includes(`/pageobjects/${po.replace('.ts', '.js')}`))).map((s) => s.f);
-    return { id, selector, intent, specs: usedBy };
-});
+const specsUsing = (pos: string[]) => specs.filter((s) => pos.some((po) => s.src.includes(`/pageobjects/${po.replace('.ts', '.js')}`))).map((s) => s.f);
+const stored = Object.values(readStore().locators);
+const inventory: Array<{ id: string; selector: string; intent: string; specs: string[]; source?: string }> = stored.map(({ id, selector, intent }) =>
+    ({ id, selector, intent, specs: specsUsing(pageObjects.filter((p) => p.src.includes(`locator('${id}')`)).map((p) => p.f)) }));
+
+// Raw $('...') selectors in page objects aren't in the store; add them unless a store entry already covers them.
+for (const raw of scanPageObjects(PO_DIR)) {
+    if (!raw.selector) continue; // dynamic selector, can't compare
+    const sel = raw.selector;
+    if (stored.some((e) => [e.selector, ...e.fallbacks].map(sameQuotes).includes(sameQuotes(sel)))) continue;
+    const same = inventory.find((i) => i.id === raw.id && sameQuotes(i.selector) === sameQuotes(sel));
+    if (same) { same.specs = [...new Set([...same.specs, ...specsUsing([raw.file])])]; continue; }
+    inventory.push({ id: raw.id, selector: sel, intent: `${raw.member} on the ${raw.page} page`, specs: specsUsing([raw.file]),
+        source: `raw $() in ${raw.file}, not in locatorStore.json` });
+}
 
 // 3. Cheap rule check: a stored selector's value appears on a removed line of the diff
 const removed = diff.split('\n').filter((l) => l.startsWith('-') && !l.startsWith('---')).join('\n');
@@ -94,7 +105,7 @@ const body = [
     `QA impact check${pr ? ` for PR #${pr}` : ''}: ${result.items.length} test selector(s) affected`, '',
     result.summary, '',
     ...result.items.map((i) => [
-        `- ${i.severity === 'breaks' ? '❌ breaks' : '⚠ review'}: ${i.locator_id}`,
+        `- ${i.severity === 'breaks' ? '❌ breaks' : '⚠ review'}: ${i.locator_id}${sourceNote(i.locator_id)}`,
         `  - What changed: ${i.what_changed}`,
         `  - Old selector: ${i.old_selector}`,
         `  - Suggested selector: ${i.suggested_selector || 'none (element removed?)'}`,
@@ -141,6 +152,12 @@ async function createJiraTicket(summary: string, description: string, files: str
         if (!up.ok) console.warn(`Jira attachments ${up.status}: ${await up.text()}`);
     }
     return `${site}/browse/${key}`;
+}
+
+/** " (raw $() in form.page.ts, ...)" for selectors found outside the store. */
+function sourceNote(id: string) {
+    const source = inventory.find((x) => x.id === id)?.source;
+    return source ? ` (${source})` : '';
 }
 
 function comment(text: string) {

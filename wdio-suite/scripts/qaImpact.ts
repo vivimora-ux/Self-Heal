@@ -113,13 +113,11 @@ const body = [
         `  - Affected specs: ${i.affected_specs.join(', ') || 'unknown'}`,
         `  - Reasoning: ${i.reasoning}`,
     ].join('\n')),
-    '', `Screenshots (${screenshots.length}, one per page): the real test failure with healing off. Every broken selector on the page is marked: old in red, AI suggestion in purple.`,
 ].join('\n');
 
-const ticket = await createJiraTicket(`QA: ${pr ? `PR #${pr}` : 'PR'} affects ${result.items.length} test selector(s)`, body, screenshots);
-const run = process.env.GITHUB_RUN_ID && `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
-const where = [ticket && 'attached to the Jira ticket', run && `downloadable from the run (qa-impact-screenshots): ${run}`].filter(Boolean).join('; ');
-const full = `${body}${where ? ` Screenshots ${where}.` : ''}\n\n${ticket ? `Jira: ${ticket}` : 'Dry run: Jira not configured, no ticket created.'}\n`;
+const shots = `\n\nScreenshots (${screenshots.length}, one per page, attached to the Jira ticket): the real test failure with healing off. Every broken selector on the page is marked: old in red, AI suggestion in purple.`;
+const ticket = await createJiraTicket(`QA: ${pr ? `PR #${pr}` : 'PR'} affects ${result.items.length} test selector(s)`, body + shots, screenshots);
+const full = `${body}${ticket ? shots : ''}\n\n${ticket ? `Jira: ${ticket}` : 'Dry run: Jira not configured, no ticket created.'}\n`;
 mkdirSync('wdio-suite/reports', { recursive: true });
 writeFileSync(REPORT, full);
 console.log(full);

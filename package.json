@@ -13,6 +13,7 @@
   },
   "scripts": {
     "wdio": "wdio run ./wdio.conf.ts",
+    "reset:store": "cp ./wdio-suite/locatorStore.seed.json ./wdio-suite/locatorStore.json && npm run clean:pending && rm -rf ./wdio-suite/reports",
     "clean:pending": "rm -f ./wdio-suite/pendingSelectors.md",
     "seed:store": "tsx ./wdio-suite/scripts/seedStore.ts",
     "qa:impact": "tsx ./wdio-suite/scripts/qaImpact.ts",

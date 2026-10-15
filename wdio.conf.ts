@@ -1,5 +1,12 @@
 import { existsSync } from 'node:fs';
-import { VIEWS, printSummary, recordImpactFailure, resetHealEvents, writeHtmlReport } from './wdio-suite/e2e/helpers/healReport.js';
+
+import {
+	printSummary,
+	recordImpactFailure,
+	resetHealEvents,
+	VIEWS,
+	writeHtmlReport,
+} from './wdio-suite/e2e/helpers/healReport.js';
 
 // Load GEMINI_API_KEY (used by tiers 2 and 3) from .env if present.
 if (existsSync('.env')) process.loadEnvFile('.env');
@@ -15,7 +22,7 @@ export const config: WebdriverIO.Config = {
     // WebdriverIO supports running e2e tests as well as unit and component tests.
     runner: 'local',
     tsConfigPath: './tsconfig.json',
-    
+
     //
     // ==================
     // Specify Test Files
@@ -125,7 +132,7 @@ export const config: WebdriverIO.Config = {
     // Make sure you have the wdio adapter package for the specific framework installed
     // before running any tests.
     framework: 'mocha',
-    
+
     //
     // The number of times to retry the entire specfile when it fails as a whole
     // specFileRetries: 1,
@@ -277,7 +284,7 @@ export const config: WebdriverIO.Config = {
         if (VIEWS.has('summary')) printSummary();
         if (VIEWS.has('html')) writeHtmlReport();
         // Keep the browser window open after the run so the final state is visible during the demo.
-        if (!HEADLESS) await browser.pause(3600000);
+        if (!HEADLESS) await browser.pause(30000);
     },
     /**
      * Gets executed right after terminating the webdriver session.
@@ -295,8 +302,9 @@ export const config: WebdriverIO.Config = {
      * @param {Array.<Object>} capabilities list of capabilities details
      * @param {<Object>} results object containing test results
      */
-    // onComplete: function(exitCode, config, capabilities, results) {
-    // },
+    onComplete: function (exitCode) {
+        console.log(exitCode === 0 ? '\n✅ Test run complete.\n' : '\n❌ Test run complete — failures above.\n');
+    },
     /**
     * Gets executed when a refresh happens.
     * @param {string} oldSessionId session ID of the old session

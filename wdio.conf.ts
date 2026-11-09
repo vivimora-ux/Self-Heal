@@ -284,7 +284,7 @@ export const config: WebdriverIO.Config = {
         if (VIEWS.has('summary')) printSummary();
         if (VIEWS.has('html')) writeHtmlReport();
         // Keep the browser window open after the run so the final state is visible during the demo.
-        if (!HEADLESS) await browser.pause(30000);
+        if (!HEADLESS) await browser.pause(10000);
     },
     /**
      * Gets executed right after terminating the webdriver session.
